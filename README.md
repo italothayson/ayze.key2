@@ -19,4 +19,4 @@ python app.py   # http://127.0.0.1:8080/login
 ## Observações
 - Sites na Discloud rodam na porta 8080 (já é o padrão do app).
 - O banco padrão é SQLite (`ayze.db`) no disco da Discloud. Faça backup antes de re-uploads,
-  ou use `DATABASE_URL` (Postgres/Neon) para ficar independente do deploy.
+  ou use `DATABASE_URL` (Postgres) para ficar independente do deploy.

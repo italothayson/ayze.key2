@@ -46,14 +46,10 @@ def _is_local_url(url: str) -> bool:
     return (not url) or any(h in url.lower() for h in ("127.0.0.1", "localhost", "0.0.0.0", "[::1]"))
 
 
-# URL pública: usa PUBLIC_BASE_URL se for uma URL real (ex.: https://ayzekeys.discloud.app);
-# senão a URL que o Render informa (RENDER_EXTERNAL_URL); por último o padrão local.
+# URL pública: PUBLIC_BASE_URL (ex.: https://ayzekeys.discloud.app); se vazia/local,
+# é detectada pelos headers do proxy a cada requisição.
 _env_url = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
-_render_url = os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
-if _env_url and not _is_local_url(_env_url):
-    PUBLIC_BASE_URL = _env_url
-else:
-    PUBLIC_BASE_URL = _render_url or _env_url or "http://127.0.0.1:8080"
+PUBLIC_BASE_URL = _env_url or "http://127.0.0.1:8080"
 DEFAULT_VERSION = os.getenv("DEFAULT_VERSION", "1.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 
@@ -66,12 +62,6 @@ elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL
     DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len("postgresql://"):]
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=240, future=True)
-
-# SQLite em host com disco efêmero (Render/Heroku/Railway) é apagado a cada
-# reinício/redeploy. Na Discloud o disco é persistente, então não gera aviso.
-EPHEMERAL_DB = engine.dialect.name == "sqlite" and bool(
-    os.getenv("RENDER") or os.getenv("RENDER_EXTERNAL_URL") or os.getenv("DYNO") or os.getenv("RAILWAY_ENVIRONMENT")
-)
 
 app = FastAPI(title="Ayze Key Panel", docs_url=None, redoc_url=None)
 app.add_middleware(
@@ -501,7 +491,6 @@ def render(request: Request, name: str, active: str, title: str, **ctx):
         "flashes": request.session.pop("flash", []),
         "release": rel,
         "public_url": base_url(request),
-        "ephemeral_db": EPHEMERAL_DB,
         "app_version": APP_VERSION,
         "accents": ACCENTS,
         "admin_name": s.get("admin_user") or ADMIN_USER,
@@ -1102,8 +1091,6 @@ def settings_account(
     set_setting("admin_user", username)
     log_event("security", "Credenciais do administrador alteradas")
     flash(request, "ok", "Credenciais atualizadas.")
-    if EPHEMERAL_DB:
-        flash(request, "err", "Atenção: o banco é SQLite temporário do host — a senha volta ao padrão quando o servidor reiniciar. Configure DATABASE_URL (Neon).")
     return RedirectResponse("/panel/settings#seguranca", status_code=303)
 
 
