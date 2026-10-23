@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% from "_icons.html" import icon %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">DISTRIBUIÇÃO</span><h1>Atualizações</h1><p class="muted" style="margin:0">Publique o csgo.lua; clientes com versão diferente recebem o update.</p></div></div>
+<section class="grid g2">
+<article class="card hero" style="flex-direction:column;align-items:flex-start;margin:0"><span class="eyebrow">VERSÃO PUBLICADA</span><div style="font-size:54px;font-weight:900;letter-spacing:-2px" class="shine">v{{ release.version }}</div>
+  <div class="small muted">Atualizada {{ release.updated_at|fmt_dt }}{% if release.sha256 %} · SHA-256 <span class="mono">{{ release.sha256[:16] }}…</span>{% endif %}</div>
+  <div class="hero-actions"><span class="status {{ 'ativa' if release.force_update else 'expirada' }}">{{ 'OBRIGATÓRIA' if release.force_update else 'OPCIONAL' }}</span>{% if release.filename %}<a class="btn ghost" href="/download/latest">{{ icon('down') }}Baixar atual</a>{% endif %}
+  <form method="post" action="/panel/release/force"><button class="ghost" type="submit">Alternar obrigatória</button></form></div></article>
+<article class="card"><div class="card-head"><div><span class="badge">PUBLICAR</span><h2>Nova versão</h2></div></div>
+  <form method="post" action="/panel/release" enctype="multipart/form-data" class="form-stack">
+    <label>Número da versão<input name="version" value="{{ release.version }}" placeholder="1.0.1" required></label>
+    <label>Arquivo completo do menu (.lua)<input type="file" name="lua_file" accept=".lua,text/plain" required></label>
+    <label class="check"><input type="checkbox" name="force_update" value="1" checked><span class="sw"></span><span class="t">Atualização obrigatória — versões antigas ficam bloqueadas</span></label>
+    <button class="primary" type="submit">{{ icon('rocket') }}PUBLICAR ATUALIZAÇÃO</button></form></article>
+</section>
+<section class="card mt"><div class="card-head"><div><span class="badge">HISTÓRICO</span><h2>Versões anteriores</h2></div><span class="small muted">Os 5 arquivos mais recentes ficam disponíveis para restauração.</span></div>
+<div class="table-wrap"><table><thead><tr><th>VERSÃO</th><th>DATA</th><th>TAMANHO</th><th>MODO</th><th>SHA-256</th><th></th></tr></thead><tbody>
+{% for h in history %}<tr><td><b>v{{ h.version }}</b>{% if h.filename == release.filename %} <span class="status ativa">ATUAL</span>{% endif %}</td><td class="small">{{ h.created_at|fmt_dt }}</td><td class="small">{{ ((h.size or 0) / 1024)|round(1) }} KB</td><td class="small">{{ 'Obrigatória' if h.force_update else 'Opcional' }}</td><td class="mono small">{{ (h.sha256 or '')[:14] }}…</td>
+<td>{% if h.available and h.filename != release.filename %}<form method="post" action="/panel/release/activate" data-confirm="Restaurar a versão {{ h.version }} como publicada?"><input type="hidden" name="hid" value="{{ h.id }}"><button class="mini">{{ icon('undo') }}Restaurar</button></form>{% elif not h.available %}<span class="small muted">arquivo removido</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="6" class="empty">Nenhuma versão publicada por aqui ainda.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

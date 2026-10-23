@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07061a">
+<title>{{ s.panel_name }} | Login</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>:root{--accent:{{ s.accent }};--accent-rgb:{{ s.accent|rgb }}}</style>
+</head>
+<body class="login-page">
+  <canvas id="net"></canvas>
+  <div class="lg-wrap">
+    <section class="lg-hero">
+      <div class="lg-brand">
+        <div class="lg-mark">{{ s.panel_name[:1] }}</div>
+        <span>{{ s.panel_name }}</span>
+      </div>
+      <h1>Gerencie suas <span class="grad">licenças</span> com controle total.</h1>
+      <p class="lg-lead">Gere keys, acompanhe dispositivos, publique atualizações e veja tudo acontecendo em tempo real, em um só painel.</p>
+      <ul class="lg-list">
+        <li>Keys com vínculo de dispositivo</li>
+        <li>Atualizações obrigatórias ou opcionais</li>
+        <li>Atividade e acessos em tempo real</li>
+      </ul>
+    </section>
+
+    <main class="lg-card {{ 'err' if error }}">
+      <h2 id="greetTitle">{{ greet.title }}</h2>
+      <p class="lg-sub" id="greetSub">{{ greet.sub }}</p>
+      {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+      <form method="post" action="/login" class="lg-form">
+        <label>Usuário
+          <input name="username" placeholder="seu usuário" autocomplete="username" required autofocus>
+        </label>
+        <label>Senha
+          <input type="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+        </label>
+        <button class="lg-btn" type="submit">ENTRAR NO PAINEL</button>
+      </form>
+      <div class="lg-foot">KEY SYSTEM {{ app_version }} · CONEXÃO PROTEGIDA</div>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

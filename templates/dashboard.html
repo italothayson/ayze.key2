@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% from "_icons.html" import icon %}{% block content %}
+<section class="card hero">
+  <div><span class="eyebrow">VISÃO GERAL</span><h2 class="shine" style="margin:6px 0">Bem-vindo de volta, {{ admin_name }}.</h2>
+  <p class="muted" style="margin:0">{{ stats.ativas }} key(s) ativa(s) · {{ stats.online }} online agora · versão {{ release.version }} publicada ({{ 'obrigatória' if release.force_update else 'opcional' }})</p></div>
+  <div class="hero-actions"><a class="btn primary" href="/panel/generate">{{ icon('plus') }}Gerar keys</a><a class="btn ghost" href="/panel/updates">{{ icon('rocket') }}Atualização</a></div>
+</section>
+
+<section class="grid g4">
+  <article class="card stat" style="--c:52,211,153"><div class="ico">{{ icon('check') }}</div><div class="num" data-count="{{ stats.ativas }}" data-live="ativas">0</div><div class="lbl">Keys ativas</div><div class="sub">{{ stats.permanentes }} permanentes</div></article>
+  <article class="card stat" style="--c:96,165,250"><div class="ico">{{ icon('wifi') }}</div><div class="num" data-count="{{ stats.online }}" data-live="online">0</div><div class="lbl">Online agora</div><div class="sub">login nos últimos {{ s.online_minutes }} min</div></article>
+  <article class="card stat" style="--c:251,191,36"><div class="ico">{{ icon('clock') }}</div><div class="num" data-count="{{ stats.expiradas }}" data-live="expiradas">0</div><div class="lbl">Expiradas</div><div class="sub">{{ expiring|length }} vencem em até 3 dias</div></article>
+  <article class="card stat" style="--c:251,84,112"><div class="ico">{{ icon('ban') }}</div><div class="num" data-count="{{ stats.revogadas }}" data-live="revogadas">0</div><div class="lbl">Revogadas</div><div class="sub">{{ stats.livres }} ativas sem PC vinculado</div></article>
+</section>
+
+<section class="grid g21 mt">
+  <article class="card"><div class="card-head"><div><span class="badge">CRESCIMENTO</span><h2>Keys criadas · 14 dias</h2></div><span class="chip">{{ chart_total }} no período</span></div>
+    <div class="bars">{% for b in chart %}<div class="bar" title="{{ b.label }}: {{ b.value }}"><b>{{ b.value or '' }}</b><i style="height:{{ [b.pct,3]|max }}%"></i><span>{{ b.label }}</span></div>{% endfor %}</div></article>
+  <article class="card"><div class="card-head"><div><span class="badge">STATUS</span><h2>Distribuição</h2></div></div>
+    <div class="donut-wrap"><div class="donut" data-n="{{ stats.total }}" style="background:conic-gradient(#34d399 0 {{ donut.ativas }}%,#fbbf24 {{ donut.ativas }}% {{ donut.ativas + donut.expiradas }}%,#fb5470 {{ donut.ativas + donut.expiradas }}% {{ donut.ativas + donut.expiradas + donut.revogadas }}%,#1c1c2b 0)"></div>
+    <div class="legend"><div><i style="background:#34d399"></i>Ativas · {{ stats.ativas }}</div><div><i style="background:#fbbf24"></i>Expiradas · {{ stats.expiradas }}</div><div><i style="background:#fb5470"></i>Revogadas · {{ stats.revogadas }}</div><div><i style="background:#8b8ba3"></i>Com PC · {{ stats.vinculadas }}</div></div></div></article>
+</section>
+
+<section class="grid g3 mt">
+  <article class="card"><div class="card-head"><div><span class="badge">ALERTA</span><h2>Vencendo em breve</h2></div></div><div class="list">
+    {% for i in expiring %}<div class="row"><div class="grow"><b>{{ i.client_name or 'Cliente' }}</b><span class="small muted mono">{{ i.key }}</span></div><span class="status expirada">{{ i.remaining }}</span></div>
+    {% else %}<div class="empty" style="padding:26px">{{ icon('check') }}<br>Nenhuma key vencendo nos próximos 3 dias.</div>{% endfor %}</div></article>
+  <article class="card"><div class="card-head"><div><span class="badge">LOGINS</span><h2>Últimos acessos</h2></div></div><div class="list">
+    {% for i in recent_logins %}<div class="row"><div class="grow"><b>{{ i.client_name or 'Cliente' }}</b><span class="small muted">{{ i.last_login|time_ago }}</span></div>{% if i.online %}<span class="status ativa">ONLINE</span>{% endif %}</div>
+    {% else %}<div class="empty" style="padding:26px">{{ icon('users') }}<br>Ninguém acessou ainda.</div>{% endfor %}</div></article>
+  <article class="card"><div class="card-head"><div><span class="badge">LOG</span><h2>Atividade recente</h2></div><a class="small muted" href="/panel/activity">ver tudo →</a></div><div class="list timeline">
+    {% for a in activity %}<div class="row"><span class="tag {{ a.kind }}">{{ a.kind }}</span><div class="grow"><span class="small">{{ a.message }}</span><div class="small muted">{{ a.created_at|time_ago }}</div></div></div>
+    {% else %}<div class="empty" style="padding:26px">{{ icon('log') }}<br>Sem atividade registrada.</div>{% endfor %}</div></article>
+</section>
+
+<section class="card mt" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+  <div style="display:flex;gap:14px;align-items:center"><span class="stat"><span class="ico">{{ icon('db') }}</span></span><div><b>Servidor do menu · {{ public_url }}</b><div class="small muted">Banco: {{ server.db }} · uptime {{ (server.uptime // 3600) }}h {{ (server.uptime % 3600) // 60 }}m · painel v{{ app_version }}</div></div></div>
+  <a class="btn ghost" href="/panel/api">{{ icon('bolt') }}Testar API</a>
+</section>
+{% endblock %}
