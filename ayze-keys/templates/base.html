@@ -1,0 +1,71 @@
+{% from "_icons.html" import icon %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#05050a">
+<title>{{ s.panel_name }} | {{ title }}</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>:root{--accent:{{ s.accent }};--accent-rgb:{{ s.accent|rgb }}}</style>
+</head>
+<body class="{{ 'compact' if s.compact == '1' }} {{ 'no-anim' if s.animations != '1' }}">
+<div class="bg {{ 'bg-aurora' if s.bg_style == 'aurora' else ('bg-grid' if s.bg_style == 'grid' else '') }}"></div><div class="noise"></div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">{{ s.panel_name[:1] }}</div><div><b>{{ s.panel_name }}</b><small>KEY SYSTEM {{ app_version }}</small></div></div>
+    <nav class="nav">
+      <div class="nav-label">PRINCIPAL</div>
+      <a href="/panel" class="{{ 'on' if active=='dashboard' }}">{{ icon('dash') }}Dashboard</a>
+      <a href="/panel/keys" class="{{ 'on' if active=='keys' }}">{{ icon('key') }}Keys</a>
+      <a href="/panel/generate" class="{{ 'on' if active=='generate' }}">{{ icon('plus') }}Gerar keys</a>
+      <div class="nav-label">SISTEMA</div>
+      <a href="/panel/updates" class="{{ 'on' if active=='updates' }}">{{ icon('rocket') }}Atualizações<span class="count">v{{ release.version }}</span></a>
+      <a href="/panel/devices" class="{{ 'on' if active=='devices' }}">{{ icon('pc') }}Dispositivos</a>
+      <a href="/panel/activity" class="{{ 'on' if active=='activity' }}">{{ icon('log') }}Atividade</a>
+      <a href="/panel/api" class="{{ 'on' if active=='api' }}">{{ icon('api') }}API</a>
+      <div class="nav-label">CONFIGURAÇÃO</div>
+      <a href="/panel/settings" class="{{ 'on' if active=='settings' }}">{{ icon('gear') }}Configurações</a>
+    </nav>
+    <div class="side-foot">
+      <div class="who"><div class="avatar">{{ admin_name[:1]|upper }}</div><div><b>{{ admin_name }}</b><small>Administrador</small></div></div>
+      <form method="post" action="/logout" id="logoutForm"><button class="ghost" style="width:100%">{{ icon('out') }}Sair</button></form>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="ghost burger" type="button">{{ icon('menu') }}</button>
+      <div class="crumb"><span>{{ s.panel_name }} /</span> {{ title }}</div>
+      <div class="top-right">
+        <button class="cmd-btn" type="button" data-cmdk>{{ icon('search') }}<span>Buscar ou ir para…</span><kbd class="kbd">Ctrl K</kbd></button>
+        <span class="chip hide-m"><span class="dot"></span>Online · <span id="clock">--:--:--</span></span>
+      </div>
+    </header>
+    <div class="wrap">
+      {% if ephemeral_db %}<div class="card" style="margin-bottom:16px;border-color:rgba(245,158,11,.6)"><b>⚠ Banco temporário (SQLite)</b><div class="small muted">Neste host o disco é apagado quando o servidor reinicia/hiberna: a senha, as keys e as configurações voltam ao início. Defina a variável <span class="mono">DATABASE_URL</span> (Postgres grátis do Neon) no Render para salvar de verdade.</div></div>{% endif %}
+      {% block content %}{% endblock %}</div>
+  </div>
+</div>
+
+<div class="overlay" id="cmdk"><div class="cmdk"><input id="cmdInput" placeholder="Digite um comando…" autocomplete="off"><ul id="cmdList">
+  <li data-href="/panel">{{ icon('dash') }}Dashboard<small>Ir para</small></li>
+  <li data-href="/panel/keys">{{ icon('key') }}Keys<small>Ir para</small></li>
+  <li data-href="/panel/generate">{{ icon('plus') }}Gerar novas keys<small>Ação</small></li>
+  <li data-href="/panel/updates">{{ icon('rocket') }}Publicar atualização<small>Ação</small></li>
+  <li data-href="/panel/devices">{{ icon('pc') }}Dispositivos<small>Ir para</small></li>
+  <li data-href="/panel/activity">{{ icon('log') }}Atividade<small>Ir para</small></li>
+  <li data-href="/panel/api">{{ icon('api') }}API e testes<small>Ir para</small></li>
+  <li data-href="/panel/settings">{{ icon('gear') }}Configurações<small>Ir para</small></li>
+  <li data-href="/panel/settings#seguranca">{{ icon('shield') }}Segurança e senha<small>Config</small></li>
+  <li data-href="/panel/keys/export.csv">{{ icon('down') }}Exportar keys (CSV)<small>Ação</small></li>
+  <li data-act="copy-url" data-val="{{ public_url }}">{{ icon('copy') }}Copiar URL do servidor<small>Ação</small></li>
+  <li data-act="logout">{{ icon('out') }}Sair<small>Sessão</small></li>
+</ul></div></div>
+
+<div class="overlay" id="confirmModal"><div class="modal"><h3>Tem certeza?</h3><p class="muted" id="confirmText"></p><div class="btns"><button class="ghost" data-close type="button">Cancelar</button><button class="danger-btn" id="confirmYes" type="button">Confirmar</button></div></div></div>
+
+<div class="toasts"></div>
+{% for kind, msg in flashes %}<i data-flash="{{ kind }}" data-msg="{{ msg }}" hidden></i>{% endfor %}
+<script src="/static/app.js"></script>
+</body>
+</html>

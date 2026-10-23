@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% from "_icons.html" import icon %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">CONFIGURAÇÃO</span><h1>Configurações</h1><p class="muted" style="margin:0">Personalize aparência, regras padrão, segurança e dados.</p></div></div>
+<div class="tabs"><button class="tab" data-tab="geral">Geral</button><button class="tab" data-tab="aparencia">Aparência</button><button class="tab" data-tab="seguranca">Segurança</button><button class="tab" data-tab="dados">Dados & backup</button><button class="tab" data-tab="sistema">Sistema</button></div>
+
+<form method="post" action="/panel/settings/save"><input type="hidden" name="tab" value="geral">
+<div class="pane" id="pane-geral"><section class="card"><div class="card-head"><div><span class="badge">GERAL</span><h2>Padrões do painel</h2></div></div>
+<div class="form-grid">
+  <label>Nome do painel<input name="panel_name" value="{{ s.panel_name }}" maxlength="18"></label>
+  <label>Prefixo das keys<input name="key_prefix" value="{{ s.key_prefix }}" maxlength="10" class="mono"></label>
+  <label>Tempo padrão (quantidade)<input type="number" name="default_amount" min="1" max="10000" value="{{ s.default_amount }}"></label>
+  <label>Período padrão<select name="default_unit">{% for v,l in [('hours','Horas'),('days','Dias'),('months','Meses'),('years','Anos'),('permanent','Permanente')] %}<option value="{{ v }}" {{ 'selected' if s.default_unit==v }}>{{ l }}</option>{% endfor %}</select></label>
+  <label>Fuso horário (UTC)<select name="tz_offset">{% for z in range(-12,15) %}<option value="{{ z }}" {{ 'selected' if s.tz_offset|int==z }}>UTC{{ '%+d'|format(z) }}{{ ' · Brasília' if z==-3 }}</option>{% endfor %}</select></label>
+  <label>Linhas por página<select name="rows_per_page">{% for n in [10,25,50,100] %}<option value="{{ n }}" {{ 'selected' if s.rows_per_page|int==n }}>{{ n }}</option>{% endfor %}</select></label>
+  <label>Considerar “online” até (min)<input type="number" name="online_minutes" min="1" max="1440" value="{{ s.online_minutes }}"></label>
+</div><div style="margin-top:18px"><button class="primary">Salvar configurações</button></div></section></div>
+
+<div class="pane" id="pane-aparencia"><section class="card"><div class="card-head"><div><span class="badge">VISUAL</span><h2>Aparência</h2></div></div>
+<div class="form-stack">
+  <div><div class="small muted" style="margin-bottom:8px;font-weight:700">COR DE DESTAQUE (pré-visualização ao vivo)</div>
+  <div class="swatches">{% for n,c in accents.items() %}<div class="sw-c {{ 'on' if s.accent==c }}" style="--c:{{ c }}" data-c="{{ c }}" title="{{ n }}"></div>{% endfor %}</div>
+  <label style="margin-top:12px;max-width:200px">Cor personalizada<input type="color" name="accent" id="accentInput" value="{{ s.accent }}"></label></div>
+  <div><div class="small muted" style="margin-bottom:8px;font-weight:700">FUNDO</div><div class="bgopts">
+    <label class="bgopt"><input type="radio" name="bg_style" value="aurora" {{ 'checked' if s.bg_style=='aurora' }}><i class="a"></i>Aurora</label>
+    <label class="bgopt"><input type="radio" name="bg_style" value="grid" {{ 'checked' if s.bg_style=='grid' }}><i class="g"></i>Grade</label>
+    <label class="bgopt"><input type="radio" name="bg_style" value="pure" {{ 'checked' if s.bg_style=='pure' }}><i></i>Preto puro</label></div></div>
+  <label class="check"><input type="checkbox" name="animations" value="1" {{ 'checked' if s.animations=='1' }}><span class="sw"></span><span class="t">Animações e efeitos de brilho</span></label>
+  <label class="check"><input type="checkbox" name="compact" value="1" {{ 'checked' if s.compact=='1' }}><span class="sw"></span><span class="t">Modo compacto (menos espaçamento, mais dados na tela)</span></label>
+  <div><button class="primary">Salvar aparência</button></div></div></section></div>
+</form>
+
+<div class="pane" id="pane-seguranca"><section class="grid g2">
+<article class="card"><div class="card-head"><div><span class="badge">CONTA</span><h2>Usuário e senha</h2></div></div>
+<form method="post" action="/panel/settings/account" class="form-stack">
+  <label>Usuário<input name="username" value="{{ admin_name }}" required minlength="3"></label>
+  <label>Senha atual<input type="password" name="current" required autocomplete="current-password"></label>
+  <label>Nova senha (deixe vazio para manter)<input type="password" name="new_password" minlength="8" autocomplete="new-password"></label>
+  <label>Confirmar nova senha<input type="password" name="confirm" autocomplete="new-password"></label>
+  <button class="primary">Atualizar credenciais</button></form></article>
+<article class="card"><div class="card-head"><div><span class="badge">PROTEÇÃO</span><h2>Estado da segurança</h2></div></div>
+<dl class="kv"><dt>Senha</dt><dd>{{ 'Personalizada (hash PBKDF2)' if info.custom_pass else 'Definida no .env — troque aqui para armazenar com hash' }}</dd>
+<dt>Anti brute-force</dt><dd><span class="status ativa">ATIVO</span> 5 falhas = bloqueio de 60s</dd><dt>Sessão</dt><dd>Expira em 12 horas</dd><dt>Cookie</dt><dd>{{ 'HTTPS only' if public_url.startswith('https') else 'HTTP (use HTTPS em produção)' }}</dd></dl>
+<form method="post" action="/logout" style="margin-top:18px"><button class="danger-btn">{{ icon('out') }}Encerrar sessão agora</button></form></article></section></div>
+
+<div class="pane" id="pane-dados"><section class="grid g2">
+<article class="card"><div class="card-head"><div><span class="badge">BACKUP</span><h2>Exportar dados</h2></div></div><p class="muted">Baixe uma cópia das suas keys e configurações.</p>
+<div class="hero-actions"><a class="btn primary" href="/panel/settings/backup.json">{{ icon('down') }}Backup completo (JSON)</a><a class="btn ghost" href="/panel/keys/export.csv">{{ icon('down') }}Keys (CSV)</a></div></article>
+<article class="card danger-zone"><div class="card-head"><div><span class="badge" style="color:var(--danger)">ZONA DE PERIGO</span><h2>Limpeza</h2></div></div>
+<div class="form-stack">
+<form method="post" action="/panel/settings/purge-expired" data-confirm="Excluir definitivamente todas as {{ info.expired }} keys expiradas?"><button class="danger-btn" style="width:100%">Remover {{ info.expired }} key(s) expirada(s)</button></form>
+<form method="post" action="/panel/settings/clear-logs" data-confirm="Apagar todo o histórico de atividade?"><button class="danger-btn" style="width:100%">Limpar histórico ({{ info.logs }} registros)</button></form></div></article></section></div>
+
+<div class="pane" id="pane-sistema"><section class="card"><div class="card-head"><div><span class="badge">SISTEMA</span><h2>Informações do servidor</h2></div></div>
+<dl class="kv"><dt>Versão do painel</dt><dd>{{ app_version }}</dd><dt>URL pública</dt><dd class="mono">{{ public_url }}</dd><dt>Banco de dados</dt><dd class="mono">{{ info.db }} · {{ info.db_url_masked }}</dd><dt>Total de keys</dt><dd>{{ info.keys }}</dd><dt>Registros de log</dt><dd>{{ info.logs }}</dd><dt>Uptime</dt><dd><span data-uptime="{{ info.uptime }}">{{ info.uptime|uptime }}</span> · desde {{ info.since|fmt_dt(true) }}</dd><dt>Versão do menu</dt><dd>v{{ release.version }}</dd></dl>
+<div style="margin-top:18px"><a class="btn ghost" href="/health" target="_blank">{{ icon('bolt') }}Testar /health</a></div></section></div>
+{% endblock %}

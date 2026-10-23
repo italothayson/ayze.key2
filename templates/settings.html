@@ -50,6 +50,6 @@
 <form method="post" action="/panel/settings/clear-logs" data-confirm="Apagar todo o histórico de atividade?"><button class="danger-btn" style="width:100%">Limpar histórico ({{ info.logs }} registros)</button></form></div></article></section></div>
 
 <div class="pane" id="pane-sistema"><section class="card"><div class="card-head"><div><span class="badge">SISTEMA</span><h2>Informações do servidor</h2></div></div>
-<dl class="kv"><dt>Versão do painel</dt><dd>{{ app_version }}</dd><dt>URL pública</dt><dd class="mono">{{ public_url }}</dd><dt>Banco de dados</dt><dd class="mono">{{ info.db }} · {{ info.db_url_masked }}</dd><dt>Total de keys</dt><dd>{{ info.keys }}</dd><dt>Registros de log</dt><dd>{{ info.logs }}</dd><dt>Uptime</dt><dd>{{ info.uptime // 3600 }}h {{ (info.uptime % 3600) // 60 }}m</dd><dt>Versão do menu</dt><dd>v{{ release.version }}</dd></dl>
+<dl class="kv"><dt>Versão do painel</dt><dd>{{ app_version }}</dd><dt>URL pública</dt><dd class="mono">{{ public_url }}</dd><dt>Banco de dados</dt><dd class="mono">{{ info.db }} · {{ info.db_url_masked }}</dd><dt>Total de keys</dt><dd>{{ info.keys }}</dd><dt>Registros de log</dt><dd>{{ info.logs }}</dd><dt>Uptime</dt><dd><span data-uptime="{{ info.uptime }}">{{ info.uptime|uptime }}</span> · desde {{ info.since|fmt_dt(true) }}</dd><dt>Versão do menu</dt><dd>v{{ release.version }}</dd></dl>
 <div style="margin-top:18px"><a class="btn ghost" href="/health" target="_blank">{{ icon('bolt') }}Testar /health</a></div></section></div>
 {% endblock %}

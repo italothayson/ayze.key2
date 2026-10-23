@@ -40,7 +40,20 @@ STARTED_AT = time.time()
 ADMIN_USER = os.getenv("ADMIN_USER", "admin").strip() or "admin"
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "troque-esta-senha")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "troque-por-uma-chave-grande-e-aleatoria")
-PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", "http://127.0.0.1:8080").rstrip("/")
+
+
+def _is_local_url(url: str) -> bool:
+    return (not url) or any(h in url.lower() for h in ("127.0.0.1", "localhost", "0.0.0.0", "[::1]"))
+
+
+# URL pública: usa PUBLIC_BASE_URL se for uma URL real; senão a URL que o Render
+# informa sozinho (RENDER_EXTERNAL_URL); por último o padrão local.
+_env_url = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
+_render_url = os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
+if _env_url and not _is_local_url(_env_url):
+    PUBLIC_BASE_URL = _env_url
+else:
+    PUBLIC_BASE_URL = _render_url or _env_url or "http://127.0.0.1:8080"
 DEFAULT_VERSION = os.getenv("DEFAULT_VERSION", "1.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 
@@ -52,7 +65,13 @@ elif DATABASE_URL.startswith("postgres://"):
 elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL:
     DATABASE_URL = "postgresql+psycopg://" + DATABASE_URL[len("postgresql://"):]
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=240, future=True)
+
+# SQLite em host gratuito (Render) fica em disco efêmero: é apagado a cada
+# reinício/redeploy/hibernação. Senha, keys e configs voltam ao estado inicial.
+EPHEMERAL_DB = engine.dialect.name == "sqlite" and bool(
+    os.getenv("RENDER") or os.getenv("RENDER_EXTERNAL_URL") or os.getenv("DYNO") or os.getenv("RAILWAY_ENVIRONMENT")
+)
 
 app = FastAPI(title="Ayze Key Panel", docs_url=None, redoc_url=None)
 app.add_middleware(
@@ -120,7 +139,13 @@ def db_execute(sql: str, params=None):
         conn.execute(text(sql), params or {})
 
 
-def get_settings() -> dict:
+def get_settings(strict: bool = False) -> dict:
+    """Lê as configurações (com cache).
+
+    Se o banco falhar, NÃO guardamos os padrões no cache — antes isso fazia a senha
+    personalizada "sumir" (voltava para a do .env) até o próximo reinício.
+    Com strict=True a falha é propagada (usado no login).
+    """
     global _settings_cache
     if _settings_cache is None:
         data = dict(DEFAULT_SETTINGS)
@@ -128,7 +153,9 @@ def get_settings() -> dict:
             for r in db_fetchall("SELECT k, v FROM settings"):
                 data[r["k"]] = r["v"]
         except Exception:
-            pass
+            if strict:
+                raise
+            return data  # sem cachear
         _settings_cache = data
     return _settings_cache
 
@@ -285,6 +312,7 @@ def hex_to_rgb(value: str) -> str:
 templates.env.filters["fmt_dt"] = fmt_dt
 templates.env.filters["time_ago"] = time_ago
 templates.env.filters["rgb"] = hex_to_rgb
+templates.env.filters["uptime"] = fmt_uptime
 
 
 def duration_delta(kind: str, amount: int) -> timedelta:
@@ -337,8 +365,29 @@ def release_info():
     return db_fetchone("SELECT * FROM release WHERE id = 1")
 
 
-def download_url(filename):
-    return f"{PUBLIC_BASE_URL}/download/latest" if filename else ""
+def base_url(request: Request | None = None) -> str:
+    """URL pública real do painel (a que o admin está usando), nunca a local por engano."""
+    if not _is_local_url(PUBLIC_BASE_URL) or request is None:
+        return PUBLIC_BASE_URL
+    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme).split(",")[0].strip()
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
+    return f"{proto}://{host}" if host else PUBLIC_BASE_URL
+
+
+def download_url(filename, base: str | None = None):
+    return f"{base or PUBLIC_BASE_URL}/download/latest" if filename else ""
+
+
+def fmt_uptime(seconds) -> str:
+    s = max(0, int(seconds or 0))
+    d, s = divmod(s, 86400)
+    h, s = divmod(s, 3600)
+    m, s = divmod(s, 60)
+    if d:
+        return f"{d}d {h}h {m}m"
+    if h:
+        return f"{h}h {m:02d}m {s:02d}s"
+    return f"{m}m {s:02d}s"
 
 
 def patch_lua_version(data: bytes, version: str) -> bytes:
@@ -371,11 +420,11 @@ def validation_payload(row, latest: str) -> str:
     return f"VALID|{expiry}|{latest}|{remaining}|{clean_client_name(row.get('client_name'))}"
 
 
-def check_release_version(version: str):
+def check_release_version(version: str, request: Request | None = None):
     rel = release_info()
     latest = rel["version"]
     force = int(rel.get("force_update") or 0)
-    url = download_url(rel.get("filename"))
+    url = download_url(rel.get("filename"), base_url(request))
     if force and version != latest:
         return f"UPDATE|{latest}|1|{url}"
     return None
@@ -451,7 +500,8 @@ def render(request: Request, name: str, active: str, title: str, **ctx):
         "title": title,
         "flashes": request.session.pop("flash", []),
         "release": rel,
-        "public_url": PUBLIC_BASE_URL,
+        "public_url": base_url(request),
+        "ephemeral_db": EPHEMERAL_DB,
         "app_version": APP_VERSION,
         "accents": ACCENTS,
         "admin_name": s.get("admin_user") or ADMIN_USER,
@@ -549,6 +599,12 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
             {"request": request, "error": msg, "s": s, "app_version": APP_VERSION, "greet": login_greeting(request)},
             status_code=code,
         )
+
+    try:
+        s = get_settings(strict=True)
+    except Exception:
+        # Banco fora do ar: não deixa logar com a senha do .env no lugar da personalizada.
+        return fail("Banco de dados indisponível no momento. Tente de novo em alguns segundos.", 503)
 
     wait = locked_seconds(ip)
     if wait:
@@ -650,6 +706,7 @@ def panel(request: Request):
     server = {
         "db": engine.dialect.name,
         "uptime": int(time.time() - STARTED_AT),
+        "since": datetime.fromtimestamp(STARTED_AT, timezone.utc).isoformat(),
     }
     return render(
         request, "dashboard.html", "dashboard", "Dashboard",
@@ -749,6 +806,7 @@ def panel_settings(request: Request):
         "logs": (db_fetchone("SELECT COUNT(*) AS c FROM activity") or {}).get("c", 0),
         "expired": sum(1 for i in items if i["status"] == "Expirada"),
         "uptime": int(time.time() - STARTED_AT),
+        "since": datetime.fromtimestamp(STARTED_AT, timezone.utc).isoformat(),
         "custom_pass": bool(get_settings().get("admin_pass_hash")),
     }
     return render(request, "settings.html", "settings", "Configurações", info=info)
@@ -1019,7 +1077,11 @@ def settings_account(
     confirm: str = Form(""),
 ):
     require_admin(request)
-    s = get_settings()
+    try:
+        s = get_settings(strict=True)
+    except Exception:
+        flash(request, "err", "Banco de dados indisponível. Tente novamente.")
+        return RedirectResponse("/panel/settings#seguranca", status_code=303)
     stored = s.get("admin_pass_hash")
     ok = verify_password(current, stored) if stored else secrets.compare_digest(current, ADMIN_PASSWORD)
     if not ok:
@@ -1040,6 +1102,8 @@ def settings_account(
     set_setting("admin_user", username)
     log_event("security", "Credenciais do administrador alteradas")
     flash(request, "ok", "Credenciais atualizadas.")
+    if EPHEMERAL_DB:
+        flash(request, "err", "Atenção: o banco é SQLite temporário do host — a senha volta ao padrão quando o servidor reiniciar. Configure DATABASE_URL (Neon).")
     return RedirectResponse("/panel/settings#seguranca", status_code=303)
 
 
@@ -1096,17 +1160,18 @@ def health():
 
 
 @app.get("/status", response_class=PlainTextResponse)
-def status(version: str = Query(default=""), device: str = Query(default="")):
+def status(request: Request, version: str = Query(default=""), device: str = Query(default="")):
     del device
-    forced = check_release_version(version)
+    forced = check_release_version(version, request)
     if forced:
         return forced
     rel = release_info()
-    return f"OK|{rel['version']}|{int(rel.get('force_update') or 0)}|{download_url(rel.get('filename'))}"
+    return f"OK|{rel['version']}|{int(rel.get('force_update') or 0)}|{download_url(rel.get('filename'), base_url(request))}"
 
 
 @app.get("/validate", response_class=PlainTextResponse)
 def validate(
+    request: Request,
     key: str = Query(default=""),
     device: str = Query(default=""),
     version: str = Query(default=""),
@@ -1114,7 +1179,7 @@ def validate(
     key = key.strip()
     device = device.strip()
 
-    forced = check_release_version(version)
+    forced = check_release_version(version, request)
     if forced:
         return forced
 
@@ -1186,10 +1251,10 @@ def ayze_download_update(key: str = Form(default=""), hwid: str = Form(default="
 
 
 @app.get("/device-auth", response_class=PlainTextResponse)
-def device_auth(device: str = Query(default=""), version: str = Query(default="")):
+def device_auth(request: Request, device: str = Query(default=""), version: str = Query(default="")):
     device = device.strip()
 
-    forced = check_release_version(version)
+    forced = check_release_version(version, request)
     if forced:
         return forced
 

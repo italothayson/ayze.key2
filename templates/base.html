@@ -41,7 +41,9 @@
         <span class="chip hide-m"><span class="dot"></span>Online · <span id="clock">--:--:--</span></span>
       </div>
     </header>
-    <div class="wrap">{% block content %}{% endblock %}</div>
+    <div class="wrap">
+      {% if ephemeral_db %}<div class="card" style="margin-bottom:16px;border-color:rgba(245,158,11,.6)"><b>⚠ Banco temporário (SQLite)</b><div class="small muted">Neste host o disco é apagado quando o servidor reinicia/hiberna: a senha, as keys e as configurações voltam ao início. Defina a variável <span class="mono">DATABASE_URL</span> (Postgres grátis do Neon) no Render para salvar de verdade.</div></div>{% endif %}
+      {% block content %}{% endblock %}</div>
   </div>
 </div>
 

@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% from "_icons.html" import icon %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">INTEGRAÇÃO</span><h1>API do menu</h1><p class="muted" style="margin:0">Endpoints usados pelo csgo.lua. Teste ao vivo daqui.</p></div></div>
+<section class="grid g2">
+<article class="card"><div class="card-head"><div><span class="badge">ENDPOINTS</span><h2>Referência</h2></div></div><div class="form-stack">
+  {% for m,p,d,t in [('GET','/health','Verifica servidor e banco','/health'),('GET','/status?version=1.0.0','Versão publicada e update','/status?version=' ~ release.version),('GET','/validate?key=&device=&version=','Valida key e vincula PC',''),('GET','/device-auth?device=&version=','Reconhece PC já ativado',''),('GET','/download/latest','Baixa o csgo.lua atual','/download/latest')] %}
+  <div class="endpoint"><span class="method">{{ m }}</span><code class="mono" style="flex:1;min-width:160px">{{ p }}</code><span class="small muted">{{ d }}</span>
+  <button class="mini" data-copy="{{ public_url }}{{ p }}">{{ icon('copy') }}</button>{% if t %}<button class="mini" data-ping="{{ t }}">Testar</button>{% endif %}</div>{% endfor %}
+  <div class="small muted">Respostas: <span class="mono">VALID|expira|versão|segundos|cliente</span> · INVALID · EXPIRED · REVOKED · DEVICE_MISMATCH · NO_LICENSE · UPDATE|versão|1|url</div></div></article>
+<article class="card"><div class="card-head"><div><span class="badge">TERMINAL</span><h2>Console de testes</h2></div><button class="mini" id="clearTerm">Limpar</button></div>
+  <div class="terminal" id="term"><span class="p">$</span> pronto. Clique em “Testar” em um endpoint.
+</div><p class="small muted">Base: <span class="mono">{{ public_url }}</span></p></article>
+</section>
+{% endblock %}

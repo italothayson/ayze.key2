@@ -16,6 +16,10 @@ const sb=$('.sidebar');$('.burger')&&$('.burger').addEventListener('click',()=>s
 document.addEventListener('click',e=>{if(sb&&sb.classList.contains('open')&&!e.target.closest('.sidebar,.burger'))sb.classList.remove('open')});
 /* relógio */
 const clock=$('#clock');if(clock){const t=()=>{const d=new Date();clock.textContent=d.toLocaleTimeString('pt-BR')};t();setInterval(t,1000)}
+/* uptime ao vivo */
+(function(){const els=$$('[data-uptime]');if(!els.length)return;const t0=Date.now();
+ const f=s=>{s=Math.max(0,Math.floor(s));const d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60),x=s%60,p=n=>String(n).padStart(2,'0');return d?`${d}d ${h}h ${m}m`:h?`${h}h ${p(m)}m ${p(x)}s`:`${m}m ${p(x)}s`};
+ const tick=()=>els.forEach(e=>{e.textContent=f(+e.dataset.uptime+(Date.now()-t0)/1000)});tick();setInterval(tick,1000)})();
 /* confirmação customizada */
 let pendingForm=null;const cm=$('#confirmModal');
 document.addEventListener('submit',e=>{const f=e.target;if(f.dataset.confirm&&!f.dataset.ok){e.preventDefault();pendingForm=f;$('#confirmText').textContent=f.dataset.confirm;cm.classList.add('show')}});

@@ -33,7 +33,7 @@
 </section>
 
 <section class="card mt" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
-  <div style="display:flex;gap:14px;align-items:center"><span class="stat"><span class="ico">{{ icon('db') }}</span></span><div><b>Servidor do menu · {{ public_url }}</b><div class="small muted">Banco: {{ server.db }} · uptime {{ (server.uptime // 3600) }}h {{ (server.uptime % 3600) // 60 }}m · painel v{{ app_version }}</div></div></div>
+  <div style="display:flex;gap:14px;align-items:center"><span class="stat"><span class="ico">{{ icon('db') }}</span></span><div><b>Servidor do menu · {{ public_url }}</b><div class="small muted">Banco: {{ server.db }} · no ar há <b data-uptime="{{ server.uptime }}">{{ server.uptime|uptime }}</b> (desde {{ server.since|fmt_dt(true) }}) · painel v{{ app_version }}</div></div></div>
   <a class="btn ghost" href="/panel/api">{{ icon('bolt') }}Testar API</a>
 </section>
 {% endblock %}

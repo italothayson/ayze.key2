@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% from "_icons.html" import icon %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">AUDITORIA</span><h1>Atividade</h1><p class="muted" style="margin:0">Tudo que acontece no painel e na API fica registrado aqui.</p></div></div>
+<section class="card"><div class="pills" style="margin-bottom:14px"><a class="pill {{ 'on' if not kind }}" href="/panel/activity">Tudo</a>{% for k in kinds %}<a class="pill {{ 'on' if kind==k }}" href="/panel/activity?kind={{ k }}">{{ k }}</a>{% endfor %}</div>
+<div class="list timeline">{% for a in rows %}<div class="row"><span class="tag {{ a.kind }}" style="min-width:68px;text-align:center">{{ a.kind }}</span><div class="grow"><span>{{ a.message }}</span></div><span class="small muted" title="{{ a.created_at|fmt_dt(true) }}" style="white-space:nowrap">{{ a.created_at|fmt_dt }} · {{ a.created_at|time_ago }}</span></div>
+{% else %}<div class="empty">{{ icon('log') }}<br>Nada registrado ainda.</div>{% endfor %}</div></section>
+{% endblock %}
