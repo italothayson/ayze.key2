@@ -1,0 +1,8 @@
+.env
+*.db
+*.sqlite3
+__pycache__/
+.venv/
+*.bat
+configurar_ip.py
+ayzemenu_IP_LOCAL.lua

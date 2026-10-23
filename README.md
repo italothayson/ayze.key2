@@ -1,23 +1,22 @@
-# AYZE Key Panel
+# AYZE Key Panel (Discloud)
 
-Painel de keys (FastAPI + Jinja2) com API usada pelo `ayzemenu.lua`.
+Site FastAPI + Jinja2 com a API usada pelo `ayzemenu.lua`.
 
-> **Não é um site estático**: o GitHub Pages não executa Python. O código fica no GitHub e o painel roda em um host de Python (ex.: Render).
+## Publicar na Discloud
+1. Edite o `.env`: defina `ADMIN_PASSWORD` (e `ADMIN_USER` se quiser).
+2. Se o subdomínio `ayzekeys` já estiver em uso, troque `ID=` no `discloud.config`,
+   `PUBLIC_BASE_URL` no `.env` e `API_BASE` no `ayzemenu.lua` para o mesmo nome.
+3. Zipe o conteúdo da pasta (o `discloud.config` deve ficar na RAIZ do zip) e envie
+   pelo bot (`/upload`), pelo painel, ou use `discloud upload`.
+4. Acesse `https://SEU-ID.discloud.app/health` (deve mostrar OK) e depois `/login`.
 
 ## Rodar local
 ```bash
-cp .env.example .env   # edite ADMIN_PASSWORD e SESSION_SECRET
 pip install -r requirements.txt
-python app.py          # http://127.0.0.1:8080/login
+python app.py   # http://127.0.0.1:8080/login
 ```
 
-## Publicar (Render + Neon)
-1. Crie um banco grátis em https://neon.tech e copie a connection string (`DATABASE_URL`).
-2. No https://render.com: **New > Blueprint** e escolha este repositório (usa `render.yaml`).
-3. Defina `ADMIN_PASSWORD` e `DATABASE_URL` (obrigatório para a senha/keys não resetarem). `PUBLIC_BASE_URL` é opcional: o painel detecta a URL do Render sozinho.
-4. Abra `/health` (deve mostrar OK) e depois `/login`.
-5. No `ayzemenu.lua`, troque `API_BASE` pela URL pública.
-
-Sem `DATABASE_URL` o app usa SQLite, que **é apagado** a cada redeploy em hosts gratuitos.
-
-> **Senha voltando ao padrão / keys sumindo?** Sem `DATABASE_URL` o painel usa SQLite no disco temporário do Render, apagado a cada reinício ou hibernação (plano grátis hiberna após ~15 min sem acesso). Configure o Neon para persistir tudo. O uptime também zera quando o plano grátis hiberna; um monitor (ex.: UptimeRobot em `/health` a cada 5 min) mantém o servidor acordado.
+## Observações
+- Sites na Discloud rodam na porta 8080 (já é o padrão do app).
+- O banco padrão é SQLite (`ayze.db`) no disco da Discloud. Faça backup antes de re-uploads,
+  ou use `DATABASE_URL` (Postgres/Neon) para ficar independente do deploy.

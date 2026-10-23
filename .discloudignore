@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+*.bat
+configurar_ip.py
+ayzemenu_IP_LOCAL.lua
+README.md

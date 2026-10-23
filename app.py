@@ -46,8 +46,8 @@ def _is_local_url(url: str) -> bool:
     return (not url) or any(h in url.lower() for h in ("127.0.0.1", "localhost", "0.0.0.0", "[::1]"))
 
 
-# URL pública: usa PUBLIC_BASE_URL se for uma URL real; senão a URL que o Render
-# informa sozinho (RENDER_EXTERNAL_URL); por último o padrão local.
+# URL pública: usa PUBLIC_BASE_URL se for uma URL real (ex.: https://ayzekeys.discloud.app);
+# senão a URL que o Render informa (RENDER_EXTERNAL_URL); por último o padrão local.
 _env_url = os.getenv("PUBLIC_BASE_URL", "").strip().rstrip("/")
 _render_url = os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
 if _env_url and not _is_local_url(_env_url):
@@ -67,8 +67,8 @@ elif DATABASE_URL.startswith("postgresql://") and "+psycopg" not in DATABASE_URL
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=240, future=True)
 
-# SQLite em host gratuito (Render) fica em disco efêmero: é apagado a cada
-# reinício/redeploy/hibernação. Senha, keys e configs voltam ao estado inicial.
+# SQLite em host com disco efêmero (Render/Heroku/Railway) é apagado a cada
+# reinício/redeploy. Na Discloud o disco é persistente, então não gera aviso.
 EPHEMERAL_DB = engine.dialect.name == "sqlite" and bool(
     os.getenv("RENDER") or os.getenv("RENDER_EXTERNAL_URL") or os.getenv("DYNO") or os.getenv("RAILWAY_ENVIRONMENT")
 )
