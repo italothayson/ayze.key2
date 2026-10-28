@@ -1,6 +1,8 @@
 import csv
 import hashlib
 import io
+import ipaddress
+import threading
 import json
 import os
 import re
@@ -10,6 +12,7 @@ import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
@@ -43,7 +46,20 @@ SESSION_SECRET = os.getenv("SESSION_SECRET", "troque-por-uma-chave-grande-e-alea
 
 
 def _is_local_url(url: str) -> bool:
-    return (not url) or any(h in url.lower() for h in ("127.0.0.1", "localhost", "0.0.0.0", "[::1]"))
+    """True para URL vazia, localhost ou IP de rede local (192.168.x, 10.x, 172.16-31.x)."""
+    if not url:
+        return True
+    low = url.lower()
+    if any(h in low for h in ("127.0.0.1", "localhost", "0.0.0.0", "[::1]")):
+        return True
+    host = (urlsplit(low if "//" in low else "//" + low).hostname or "")
+    if host.endswith(".local"):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+        return ip.is_private or ip.is_loopback or ip.is_unspecified
+    except ValueError:
+        return False
 
 
 # URL pública: PUBLIC_BASE_URL (ex.: https://ayzekeys.discloud.app); se vazia/local,
@@ -302,7 +318,6 @@ def hex_to_rgb(value: str) -> str:
 templates.env.filters["fmt_dt"] = fmt_dt
 templates.env.filters["time_ago"] = time_ago
 templates.env.filters["rgb"] = hex_to_rgb
-templates.env.filters["uptime"] = fmt_uptime
 
 
 def duration_delta(kind: str, amount: int) -> timedelta:
@@ -355,13 +370,19 @@ def release_info():
     return db_fetchone("SELECT * FROM release WHERE id = 1")
 
 
-def base_url(request: Request | None = None) -> str:
-    """URL pública real do painel (a que o admin está usando), nunca a local por engano."""
-    if not _is_local_url(PUBLIC_BASE_URL) or request is None:
-        return PUBLIC_BASE_URL
-    proto = (request.headers.get("x-forwarded-proto") or request.url.scheme).split(",")[0].strip()
-    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
-    return f"{proto}://{host}" if host else PUBLIC_BASE_URL
+def base_url(request: Request | None = None, prefer_request: bool = False) -> str:
+    """URL pública real do painel.
+
+    prefer_request=True (usado nas telas do painel): usa SEMPRE o endereço pelo qual o
+    admin está acessando agora, então "Copiar URL do servidor" nunca devolve uma URL antiga
+    do .env. Sem prefer_request, usa o .env, exceto se ele for local/IP de rede.
+    """
+    if request is not None and (prefer_request or _is_local_url(PUBLIC_BASE_URL)):
+        proto = (request.headers.get("x-forwarded-proto") or request.url.scheme).split(",")[0].strip()
+        host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(",")[0].strip()
+        if host:
+            return f"{proto}://{host}"
+    return PUBLIC_BASE_URL
 
 
 def download_url(filename, base: str | None = None):
@@ -378,6 +399,9 @@ def fmt_uptime(seconds) -> str:
     if h:
         return f"{h}h {m:02d}m {s:02d}s"
     return f"{m}m {s:02d}s"
+
+
+templates.env.filters["uptime"] = fmt_uptime
 
 
 def patch_lua_version(data: bytes, version: str) -> bytes:
@@ -490,7 +514,7 @@ def render(request: Request, name: str, active: str, title: str, **ctx):
         "title": title,
         "flashes": request.session.pop("flash", []),
         "release": rel,
-        "public_url": base_url(request),
+        "public_url": base_url(request, prefer_request=True),
         "app_version": APP_VERSION,
         "accents": ACCENTS,
         "admin_name": s.get("admin_user") or ADMIN_USER,
@@ -550,9 +574,69 @@ def login_greeting(request: Request) -> dict:
 
 # ------------------------------------------------------------------ startup / auth
 
+def _kv_get(key: str):
+    try:
+        r = db_fetchone("SELECT v FROM settings WHERE k = :k", {"k": key})
+        return r["v"] if r else None
+    except Exception:
+        return None
+
+
+def _kv_set(key: str, value: str):
+    """Grava em settings SEM invalidar o cache de configurações (usado no heartbeat)."""
+    with engine.begin() as conn:
+        res = conn.execute(text("UPDATE settings SET v = :v WHERE k = :k"), {"k": key, "v": value})
+        if not res.rowcount:
+            conn.execute(text("INSERT INTO settings (k, v) VALUES (:k, :v)"), {"k": key, "v": value})
+
+
+UPTIME_GRACE = 120  # reinício mais rápido que isso não zera o "no ar há"
+
+
+def init_uptime():
+    """Define STARTED_AT. Se o site só reiniciou rápido (< UPTIME_GRACE s sem heartbeat),
+    continua a contagem anterior; se ficou fora do ar mais que isso, começa do zero."""
+    global STARTED_AT
+    now = time.time()
+    try:
+        hb = float(_kv_get("uptime_heartbeat") or 0)
+        ss = float(_kv_get("uptime_start") or 0)
+    except ValueError:
+        hb = ss = 0.0
+    fresh_db = not _kv_get("uptime_start")
+    if ss and hb and 0 <= now - hb <= UPTIME_GRACE and ss <= now:
+        STARTED_AT = ss
+    else:
+        STARTED_AT = now
+        try:
+            _kv_set("uptime_start", str(now))
+        except Exception:
+            pass
+    try:
+        _kv_set("uptime_heartbeat", str(now))
+    except Exception:
+        pass
+    return fresh_db
+
+
+def _heartbeat_loop():
+    while True:
+        time.sleep(30)
+        try:
+            _kv_set("uptime_heartbeat", str(time.time()))
+        except Exception:
+            pass
+
+
 @app.on_event("startup")
 def startup():
     init_db()
+    fresh = init_uptime()
+    log_event(
+        "system",
+        "Servidor iniciado" + (" (banco novo/zerado — senha e keys NÃO foram preservadas)" if fresh else ""),
+    )
+    threading.Thread(target=_heartbeat_loop, daemon=True).start()
 
 
 @app.exception_handler(401)
@@ -1220,6 +1304,7 @@ def ayze_validate(
         "update": update,
         "mandatory": bool(update and int(rel.get("force_update") or 0) and rel.get("filename")),
         "version": latest,
+        "name": clean_client_name(row.get("client_name")),
     }
 
 

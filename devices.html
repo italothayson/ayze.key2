@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% from "_icons.html" import icon %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">HARDWARE</span><h1>Dispositivos vinculados</h1><p class="muted" style="margin:0">{{ devices|length }} PC(s) vinculado(s). Cada key só funciona no PC da primeira ativação.</p></div></div>
+<section class="card"><div class="table-wrap"><table><thead><tr><th>CLIENTE</th><th>KEY</th><th>DEVICE ID</th><th>STATUS</th><th>ÚLTIMO ACESSO</th><th></th></tr></thead><tbody>
+{% for i in devices %}<tr><td><b>{{ i.client_name or 'Cliente' }}</b></td><td><button class="copy-key" onclick="copyText('{{ i.key }}',this)">{{ i.key }}</button></td>
+<td class="mono small"><span style="cursor:pointer" onclick="copyText('{{ i.device_id }}')">{{ i.device_id }}</span></td>
+<td><span class="status {{ i.status|lower }}">{{ i.status }}</span>{% if i.online %} <span class="dot"></span>{% endif %}</td><td class="small">{{ i.last_login|time_ago if i.last_login else 'Nunca' }}<div class="muted">{{ i.last_login|fmt_dt if i.last_login }}</div></td>
+<td><form method="post" action="/panel/key/action" data-confirm="Desvincular este PC?"><input type="hidden" name="key" value="{{ i.key }}"><input type="hidden" name="action" value="reset_device"><input type="hidden" name="next" value="/panel/devices"><button class="mini danger">{{ icon('undo') }}Desvincular</button></form></td></tr>
+{% else %}<tr><td colspan="6" class="empty">{{ icon('pc') }}<br>Nenhum dispositivo vinculado ainda.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

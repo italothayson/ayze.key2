@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% from "_icons.html" import icon %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">NOVAS LICENÇAS</span><h1>Gerar keys</h1><p class="muted" style="margin:0">Escolha um plano rápido ou personalize. Prefixo atual: <b class="mono">{{ s.key_prefix }}-XXXX-XXXX-XXXX</b></p></div></div>
+{% if batch %}<section class="card" style="margin-bottom:18px;border-color:rgba(var(--accent-rgb),.5)"><div class="card-head"><div><span class="badge">PRONTO ✓</span><h2>{{ batch|length }} key(s) gerada(s) — clique para copiar</h2></div><div class="hero-actions"><button class="ghost" id="copyAll" type="button">{{ icon('copy') }}Copiar todas</button><button class="ghost" id="dlAll" type="button">{{ icon('down') }}Baixar .txt</button></div></div>
+  <div class="batch">{% for k in batch %}<div class="keycard"><code>{{ k.key }}</code><small>{{ k.client_name }} · {{ k.remaining }}</small></div>{% endfor %}</div></section>{% endif %}
+<section class="grid g21">
+<article class="card"><div class="card-head"><div><span class="badge">GERADOR</span><h2>Configurar plano</h2></div></div>
+  <div class="presets">
+    <button type="button" class="preset" data-a="1" data-u="hours"><span>1 hora</span><small>teste</small></button>
+    <button type="button" class="preset" data-a="1" data-u="days"><span>1 dia</span><small>diária</small></button>
+    <button type="button" class="preset" data-a="7" data-u="days"><span>7 dias</span><small>semanal</small></button>
+    <button type="button" class="preset" data-a="30" data-u="days"><span>30 dias</span><small>mensal</small></button>
+    <button type="button" class="preset" data-a="1" data-u="years"><span>1 ano</span><small>anual</small></button>
+    <button type="button" class="preset" data-a="1" data-u="permanent"><span>∞</span><small>permanente</small></button></div>
+  <form method="post" action="/panel/key/create" class="form-grid">
+    <label class="span2">Nome do cliente<input type="text" name="client_name" maxlength="48" placeholder="Ex: João Silva" required></label>
+    <label>Quantidade de tempo<input type="number" name="amount" id="gAmount" min="1" max="10000" value="{{ s.default_amount }}" required></label>
+    <label>Período<select name="unit" id="gUnit">{% for v,l in [('hours','Horas'),('days','Dias'),('months','Meses'),('years','Anos'),('permanent','Permanente')] %}<option value="{{ v }}" {{ 'selected' if s.default_unit==v }}>{{ l }}</option>{% endfor %}</select></label>
+    <label>Quantidade de keys<input type="number" name="quantity" min="1" max="100" value="1" required></label>
+    <label>Nota interna (opcional)<input name="note" maxlength="250" placeholder="Ex: revenda, Pix…"></label>
+    <button class="primary span2" type="submit" style="padding:14px">{{ icon('bolt') }}GERAR KEYS</button></form></article>
+<article class="card"><div class="card-head"><div><span class="badge">HISTÓRICO</span><h2>Últimas criadas</h2></div></div><div class="list">
+  {% for i in recent %}<div class="row"><div class="grow"><b>{{ i.client_name }}</b><span class="small muted mono">{{ i.key }}</span></div><button class="mini" onclick="copyText('{{ i.key }}')">{{ icon('copy') }}</button></div>
+  {% else %}<div class="empty">{{ icon('key') }}<br>Nenhuma key ainda.</div>{% endfor %}</div></article>
+</section>
+{% endblock %}

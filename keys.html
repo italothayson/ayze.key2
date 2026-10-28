@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% from "_icons.html" import icon %}{% block content %}
+<div class="page-head"><div><span class="eyebrow">LICENÇAS</span><h1>Keys cadastradas</h1><p class="muted" style="margin:0">Filtre, ordene, edite e aja em várias keys de uma vez.</p></div>
+  <div class="hero-actions"><a class="btn ghost" href="/panel/keys/export.csv">{{ icon('down') }}Exportar CSV</a><a class="btn primary" href="/panel/generate">{{ icon('plus') }}Nova key</a></div></div>
+<section class="card">
+  <div class="toolbar"><div class="search-box">{{ icon('search') }}<input id="search" data-init="{{ q }}" placeholder="Pesquisar cliente, key, PC, nota…"></div>
+    <select id="perPage" style="width:auto"><option value="10" {{ 'selected' if s.rows_per_page=='10' }}>10 / pág</option><option value="25" {{ 'selected' if s.rows_per_page=='25' }}>25 / pág</option><option value="50" {{ 'selected' if s.rows_per_page=='50' }}>50 / pág</option><option value="100" {{ 'selected' if s.rows_per_page=='100' }}>100 / pág</option></select></div>
+  <div class="pills" style="margin-bottom:14px">
+    <button class="pill on" data-filter="all">Todas<em>{{ stats.total }}</em></button><button class="pill" data-filter="ativa">Ativas<em>{{ stats.ativas }}</em></button><button class="pill" data-filter="expirada">Expiradas<em>{{ stats.expiradas }}</em></button><button class="pill" data-filter="revogada">Revogadas<em>{{ stats.revogadas }}</em></button><button class="pill" data-filter="online">Online<em>{{ stats.online }}</em></button></div>
+  <form class="bulk" id="bulk" method="post" action="/panel/key/bulk"><span id="bulkForm" hidden></span>
+    <b><span id="bulkN">0</span> selecionada(s)</b>
+    <select name="action" id="bulkAction" style="width:auto"><option value="revoke">Revogar</option><option value="reactivate">Reativar</option><option value="reset_device">Resetar PC</option><option value="add_time">Adicionar tempo</option><option value="delete">Excluir</option></select>
+    <span id="bulkTime" style="display:none;gap:6px"><input type="number" name="amount" min="1" value="1" style="width:70px"><select name="unit" style="width:auto"><option value="hours">horas</option><option value="days" selected>dias</option><option value="months">meses</option><option value="years">anos</option></select></span>
+    <button class="primary" type="submit" onclick="return confirm('Aplicar ação nas keys selecionadas?')">Aplicar</button></form>
+  <div class="table-wrap"><table id="keysTable" data-per="{{ s.rows_per_page }}">
+    <thead><tr><th style="width:36px"><input type="checkbox" class="cb" id="checkAll"></th><th class="sort">CLIENTE</th><th class="sort">KEY</th><th class="sort">STATUS</th><th class="sort">TEMPO</th><th class="sort">PC</th><th class="sort">ÚLTIMO LOGIN</th><th>AÇÕES</th></tr></thead>
+    <tbody>
+    {% for i in licenses %}
+      <tr data-key="{{ i.key }}" data-status="{{ i.status|lower }}" data-online="{{ 1 if i.online else 0 }}">
+        <td><input type="checkbox" class="cb"></td>
+        <td><b>{{ i.client_name or 'Cliente' }}</b>{% if i.note %}<div class="small muted">{{ i.note }}</div>{% endif %}</td>
+        <td><button class="copy-key" type="button" onclick="copyText('{{ i.key }}',this)">{{ i.key }}</button></td>
+        <td><span class="status {{ i.status|lower }}">{{ i.status }}</span>{% if i.online %} <span class="dot" title="online"></span>{% endif %}</td>
+        <td data-v="{{ 99999999 if i.permanent else i.seconds_left }}">{{ i.remaining }}</td>
+        <td class="mono small">{{ (i.device_id[:14] ~ '…') if i.device_id else '—' }}</td>
+        <td class="small" data-v="{{ i.last_login or '' }}">{{ i.last_login|time_ago if i.last_login else 'Nunca' }}</td>
+        <td><div class="actions">
+          <button class="mini" type="button" title="Editar" data-edit="{{ i.key }}" data-name="{{ i.client_name or '' }}" data-note="{{ i.note or '' }}">{{ icon('edit') }}</button>
+          <form method="post" action="/panel/key/action"><input type="hidden" name="key" value="{{ i.key }}"><input type="hidden" name="action" value="{{ 'reactivate' if i.revoked else 'revoke' }}"><button class="mini">{{ 'Reativar' if i.revoked else 'Revogar' }}</button></form>
+          <form method="post" action="/panel/key/action" data-confirm="Desvincular o PC desta key? O próximo login vinculará um novo PC."><input type="hidden" name="key" value="{{ i.key }}"><input type="hidden" name="action" value="reset_device"><button class="mini">Reset PC</button></form>
+          {% if not i.permanent %}<button class="mini" type="button" data-addtime="{{ i.key }}">{{ icon('clock') }}+ Tempo</button>{% endif %}
+          <form method="post" action="/panel/key/action" data-confirm="Excluir {{ i.key }} definitivamente?"><input type="hidden" name="key" value="{{ i.key }}"><input type="hidden" name="action" value="delete"><button class="mini danger" title="Excluir">{{ icon('trash') }}</button></form>
+        </div></td>
+      </tr>
+    {% endfor %}
+      <tr id="emptyRow" style="display:none"><td colspan="8" class="empty">{{ icon('search') }}<br>Nenhuma key encontrada.</td></tr>
+    </tbody></table></div>
+  <div class="pager"><span id="pageInfo"></span><div class="pills" id="pager"></div></div>
+</section>
+<div class="overlay" id="editModal"><div class="modal"><h3>Editar key</h3><p class="muted mono small" id="editTitle"></p>
+  <form method="post" action="/panel/key/edit" class="form-stack"><input type="hidden" name="key" id="editKey"><label>Nome do cliente<input name="client_name" id="editName" maxlength="48" required></label><label>Nota interna<textarea name="note" id="editNote" maxlength="250" placeholder="Ex: pago via Pix, renova dia 10"></textarea></label>
+  <div class="btns"><button type="button" class="ghost" data-close>Cancelar</button><button class="primary">Salvar</button></div></form></div></div>
+<div class="overlay" id="timeModal"><div class="modal"><h3>Adicionar tempo</h3><p class="muted mono small" id="timeTitle"></p>
+  <form method="post" action="/panel/key/action" class="form-grid"><input type="hidden" name="key" id="timeKey"><input type="hidden" name="action" value="add_time"><label>Quantidade<input type="number" name="amount" min="1" value="1"></label><label>Período<select name="unit"><option value="hours">Horas</option><option value="days" selected>Dias</option><option value="months">Meses</option><option value="years">Anos</option></select></label>
+  <div class="btns span2"><button type="button" class="ghost" data-close>Cancelar</button><button class="primary">Adicionar</button></div></form></div></div>
+{% endblock %}

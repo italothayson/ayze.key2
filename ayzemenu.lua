@@ -4,7 +4,7 @@ local requests = require 'requests'
 
 -- >>> IMPORTANTE: esta constante TEM que ser igual ao numero publicado no painel (ex: "1.0.0")
 local SCRIPT_VERSION = "1.0.0"
-local API_BASE = "https://ayzekeys.discloud.app" -- URL do painel AYZE (sem barra no final)
+local API_BASE = "https://c22ayze.discloud.app" -- URL do painel AYZE (sem barra no final)
 
 local showAuthWindow = imgui.new.bool(false)
 local showMainMenu = imgui.new.bool(false)
